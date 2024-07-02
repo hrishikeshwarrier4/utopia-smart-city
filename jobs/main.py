@@ -63,13 +63,22 @@ def generate_vehicle_data(device_id):
 def generate_gps_data(device_id, timestamp, vehicle_type = 'private'):
     return {
         'id': uuid.uuid4(),
-
+        'deviceId':device_id,
+        'timestamp':timestamp,
+        'speed': random.uniform(0,45),
+        'direction':'North-East',
+        'vehicleType': vehicle_type
     }
+
+
+
+
 
 def simulate_journey(producer, device_id):
     while True:
         vehicle_data= generate_vehicle_data(device_id)
-        gps_data = generate_gps_data(device_id, vehicle_data['timestamp '])
+        gps_data = generate_gps_data(device_id, vehicle_data['timestamp'])
+        print(gps_data)
         break
 
 if __name__ == "__main__":
