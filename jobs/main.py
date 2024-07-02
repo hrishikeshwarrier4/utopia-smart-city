@@ -71,14 +71,22 @@ def generate_gps_data(device_id, timestamp, vehicle_type = 'private'):
     }
 
 
-
+def generate_traffic_camera_data(device_id, timestmap, camera_id='CannonCam123'):
+    return {
+        'id' : uuid.uuid4(),
+        'deviceId': device_id,
+        'cameraId': camera_id,
+        'timestamp': timestmap,
+        'snapshot': 'Base64EncodedString'
+    }
 
 
 def simulate_journey(producer, device_id):
     while True:
         vehicle_data= generate_vehicle_data(device_id)
         gps_data = generate_gps_data(device_id, vehicle_data['timestamp'])
-        print(gps_data)
+        traffic_data = generate_traffic_camera_data(device_id,vehicle_data['timestamp'])
+        print(traffic_data)
         break
 
 if __name__ == "__main__":
