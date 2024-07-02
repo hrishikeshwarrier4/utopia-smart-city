@@ -21,7 +21,7 @@ TRAFFIC_TOPIC = os.getenv("TRAFFIC_TOPIC", "traffic_data")
 WEATHER_TOPIC = os.getenv("WEATHER_TOPIC", "weather_data")
 EMERGENCY_TOPIC = os.getenv("EMERGENCY_TOPIC", "emergency_data")
 
-#random.seed(42)
+random.seed(42)
 start_time = datetime.now()  # Driver starting time
 start_location = LONDON_COORDINATES.copy()
 
@@ -89,7 +89,6 @@ def generate_traffic_camera_data(device_id, timestamp, location):
 
         if 'flowSegmentData' in traffic_data:
             traffic_flow = traffic_data['flowSegmentData']['currentSpeed']
-            incident = traffic_data['flowSegmentData']['confidence']  # Use confidence as a proxy for incidents
 
             return {
                 'id': uuid.uuid4(),
@@ -97,7 +96,6 @@ def generate_traffic_camera_data(device_id, timestamp, location):
                 'timestamp': timestamp,
                 'location': location,
                 'trafficFlow': traffic_flow, # traffic speed
-                'incident': incident, # 0(no accident), 1(accident), 2(roadwork),3(closed road)
                 'snapshot': snapshot
             }
         else:
@@ -155,13 +153,44 @@ def generate_weather_data(device_id, timestamp, location):
         print(f"Unexpected Error occurred: {e}")
         return None
 
+
+def generate_emergency_incident_data(device_id, timestamp, location):
+    traffic_api_key = '1KKllvwLuGtOXPlWCsdJbrIjfIOjS5Id'  # Replace with your TomTom API key
+    traffic_base_url = 'https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?'
+
+    try:
+        # Fetch traffic data
+        traffic_url = f"{traffic_base_url}point={location['latitude']},{location['longitude']}&key={traffic_api_key}"
+        traffic_response = requests.get(traffic_url)
+        traffic_data = traffic_response.json()
+
+        if 'flowSegmentData' in traffic_data:
+            incident = traffic_data['flowSegmentData']['confidence']  # Use confidence as a proxy for incidents
+
+            return {
+                'id': uuid.uuid4(),
+                'deviceId': device_id,
+                'location': location,
+                'timestamp': timestamp,
+                'incident':incident # 0(no accident), 1(accident), 2(roadwork),3(closed road)
+
+            }
+        else:
+            print('Traffic data not found.')
+            return None
+    except Exception as e:
+        print(f"Error occurred while fetching traffic data: {e}")
+        return None
+
+
 def simulate_journey(producer, device_id):
     while True:
         vehicle_data= generate_vehicle_data(device_id)
         gps_data = generate_gps_data(device_id, vehicle_data['timestamp'])
         traffic_data = generate_traffic_camera_data(device_id, vehicle_data['timestamp'], vehicle_data['location'])
         weather_data = generate_weather_data(device_id, vehicle_data['timestamp'], vehicle_data['location'])
-        print(traffic_data)
+        emergency_incident_data = generate_emergency_incident_data(device_id,vehicle_data['timestamp'],vehicle_data['location'])
+        print(emergency_incident_data)
         break
 
 if __name__ == "__main__":
@@ -172,7 +201,7 @@ if __name__ == "__main__":
     producer = SerializingProducer(producer_config)
 
     try:
-        simulate_journey(producer, "Vehicle-ron")
+        simulate_journey(producer, "Tarzan")
 
     except KeyboardInterrupt:
         print('Simulation ended by user')
