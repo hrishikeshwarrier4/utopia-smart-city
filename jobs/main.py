@@ -21,7 +21,7 @@ TRAFFIC_TOPIC = os.getenv("TRAFFIC_TOPIC", "traffic_data")
 WEATHER_TOPIC = os.getenv("WEATHER_TOPIC", "weather_data")
 EMERGENCY_TOPIC = os.getenv("EMERGENCY_TOPIC", "emergency_data")
 
-random.seed(42)
+#random.seed(42)
 start_time = datetime.now()  # Driver starting time
 start_location = LONDON_COORDINATES.copy()
 
@@ -68,35 +68,45 @@ def generate_gps_data(device_id, timestamp, vehicle_type="private"):
     }
 
 def generate_traffic_camera_data(device_id, timestamp, location):
+    traffic_api_key = '1KKllvwLuGtOXPlWCsdJbrIjfIOjS5Id'  # Replace with your TomTom API key
+    street_view_api_key = 'AIzaSyDDD-M6Di-XcsJ6ZdjpyiTkVDlM9ojqaLo'  # Replace with your Google API key
+    traffic_base_url = 'https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?'
 
-    google_api_key = 'AIzaSyDDD-M6Di-XcsJ6ZdjpyiTkVDlM9ojqaLo'  # Replace with your actual Google API key
-
-    # Construct the URL for the Street View API
-    street_view_url = (
-        f"https://maps.googleapis.com/maps/api/streetview"
-        f"?size=600x300&location={location['latitude']},{location['longitude']}"
-        f"&key={google_api_key}"
-    )
     try:
-        # Make the request to the Google Street View API
-        response = requests.get(street_view_url)
+        # Fetch traffic data
+        traffic_url = f"{traffic_base_url}point={location['latitude']},{location['longitude']}&key={traffic_api_key}"
+        traffic_response = requests.get(traffic_url)
+        traffic_data = traffic_response.json()
 
-        if response.status_code == 200:
-            snapshot = response.url  # The URL of the image
+        # Fetch snapshot
+        street_view_url = (
+            f"https://maps.googleapis.com/maps/api/streetview"
+            f"?size=600x300&location={location['latitude']},{location['longitude']}"
+            f"&heading=151.78&pitch=-0.76&fov=90&key={street_view_api_key}"
+        )
+        snapshot_response = requests.get(street_view_url)
+        snapshot = snapshot_response.url if snapshot_response.status_code == 200 else None
+
+        if 'flowSegmentData' in traffic_data:
+            traffic_flow = traffic_data['flowSegmentData']['currentSpeed']
+            incident = traffic_data['flowSegmentData']['confidence']  # Use confidence as a proxy for incidents
+
+            return {
+                'id': uuid.uuid4(),
+                'deviceId': device_id,
+                'timestamp': timestamp,
+                'location': location,
+                'trafficFlow': traffic_flow, # traffic speed
+                'incident': incident, # 0(no accident), 1(accident), 2(roadwork),3(closed road)
+                'snapshot': snapshot
+            }
         else:
-            snapshot = None
+            print('Traffic data not found.')
+            return None
     except Exception as e:
-        print(f"Error occurred while fetching traffic snapshot: {e}")
-        snapshot = None
+        print(f"Error occurred while fetching traffic data: {e}")
+        return None
 
-    return {
-        'id': uuid.uuid4(),
-        'deviceId': device_id,
-        'timestamp': timestamp,
-        'location': location,
-        'trafficFlow': random.choice(['Smooth', 'Moderate', 'Heavy']),
-        'snapshot': snapshot
-    }
 
 def generate_weather_data(device_id, timestamp, location):
     api_key = 'cb9a057593337063764f48842b88ed56'  # Replace with your OpenWeatherMap API key
