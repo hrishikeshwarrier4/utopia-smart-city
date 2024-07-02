@@ -1,5 +1,19 @@
 version: '3'
-
+# name of modules used by command
+x-spark-common: &spark-common
+  image: bitnami/spark:latest
+  volumes:
+    - ./jobs:/opt/bitnami/spark/jobs
+  command: bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+  depends_on:
+    - spark-master
+  environment:
+    SPARK_MODE: Worker
+    SPARK_WORKER_CORES: 4
+    SPARK_WORKER_MEMORY: 3g
+    SPARK_MASTER_URL: spark://spark-master:7077
+  networks:
+    - datamasterylab
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -54,6 +68,23 @@ services:
       retries: 5
     networks:
       - datamasterylab
-
+  spark-master:
+    image: bitnami/spark:latest
+    volumes:
+      - ./jobs:/opt/bitnami/spark/jobs
+    command: bin/spark-class org.apache.spark.deploy.master.Master #Command that classes the master and worker nodes. Replicated across master and worker nodes
+    ports:
+      - "9090:8080" # Contains the UI ie see and observe running jobs
+      - "7077:7077" #Where spark master Url will be sitting on. Where spark jobs are submitted into.
+    networks:
+      - datamasterylab
+  spark_worker1:
+    <<: *spark-common
+  spark_worker2:
+    <<: *spark-common
+  spark_worker3:
+    <<: *spark-common
+  spark_worker4:
+    <<: *spark-common
 networks:
   datamasterylab:
